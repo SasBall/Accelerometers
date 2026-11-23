@@ -11,6 +11,9 @@ import pyqtgraph as pg
 
 # ดึง Logic การคำนวณมาจากไฟล์ Systems.py
 from Systems import analyze_vibration
+from Systems import Transmissibility
+from Systems import calc_avg_transmissibility
+
 
 
 class VibrationMonitorApp(QMainWindow):
@@ -64,6 +67,13 @@ class VibrationMonitorApp(QMainWindow):
             "color: #00ffcc; font-size: 18px; font-weight: bold; padding: 8px 18px;"
         )
 
+        self.lbl_Ta = QLabel("Transmissibility (Ta):  Waiting...")
+        self.lbl_Ta.setAlignment(Qt.AlignCenter)  # จัดให้อยู่กึ่งกลางกล่อง
+        self.lbl_Ta.setStyleSheet(
+            "background-color: #0d2542; border: 1px solid #3a608f; border-radius: 6px; "
+            "color: #00ffcc; font-size: 18px; font-weight: bold; padding: 8px 18px;"
+        )
+
         #============================================================================
         #จัดเรียงปุ่มด้านบน
 
@@ -76,7 +86,9 @@ class VibrationMonitorApp(QMainWindow):
 
         #ด้านขวา
         top_bar.addWidget(self.lbl_zeta)
+        top_bar.addWidget(self.lbl_Ta)
         main_layout.addLayout(top_bar)
+
         #=============================================================================
 
         #=======================================================================================================================================
@@ -139,6 +151,7 @@ class VibrationMonitorApp(QMainWindow):
         self.curve_body.setData([], [])
         self.plot_widget.setXRange(0, 5)
         self.lbl_zeta.setText("Damping Ratio (ζ):  Waiting...")
+        self.lbl_Ta.setText("Transmissibility (Ta):  Waiting...")
 
     def update_loop(self):
         now = time.perf_counter() - self.start_time
@@ -162,10 +175,13 @@ class VibrationMonitorApp(QMainWindow):
         self.a_Real_body.append(senser_body)
         #==================================================================================
 
+
+
         #=================================================================================
         # อัปเดตเส้นกราฟ (โชว์ 300 จุดล่าสุด)
         #ดึงเฉพาะข้อมูล 300 ตัวสุดท้ายนับจากท้าย List มาจนถึงตัวล่าสุด
         #แก้อาการหน่วง
+        # 300  จุดเท่ากับ 3.0 วินาที
         self.curve_wheel.setData(self.t_Wheel[-300:], self.a_Real_Wheel[-300:])
         self.curve_body.setData(self.t_Body[-300:], self.a_Real_body[-300:])
         #================================================================================
@@ -175,14 +191,28 @@ class VibrationMonitorApp(QMainWindow):
         current_t = self.t_Wheel[-1]
         self.plot_widget.setXRange(max(0, current_t - 5.0), max(5.0, current_t))
         #self.plot_widget.setXRange(จุดเริ่มต้น, จุดสิ้นสุด)
-        #=============================================================================
+        #===============================================================================================================
+        #เทคนิค จำกัดจังหวะให้ส่งข้อมูลไปคำนวณใน Systems.py และอัปเดตตัวเลขบนหน้าจอแค่ทุกๆ 0.1 วินาที (10 ครั้งต่อวินาที)
+        #แทนที่จะส่งไปคำนวณทุกๆ 0.01 วินาที (100 ครั้งต่อวินาที) ซึ่งช่วยประหยัดแรง CPU
 
         # ส่งข้อมูลไปให้ฟังก์ชันใน Systems.py คำนวณทุกๆ 10 รอบ
         #เซนเซอร์ส่งค่ามา 100 ครั้งต่อวินาที แต่ให้มันคำนวณ zeta แค่ 10 ครั้งต่อวินาที
+        #10 = ทุก 0.1  วินาที
         if len(self.a_Real_body) % 10 == 0:
-            _, latest_zeta = analyze_vibration(self.a_Real_body[-200:])
+            _, latest_zeta = analyze_vibration(self.a_Real_body[-200:])# 200 = 2.0 วินาที เพื่อให้คลื่นครบ 2 รอบหรือมากกว่า
+
+            #Damping Ratio
             if latest_zeta is not None:
                 self.lbl_zeta.setText(f"Damping Ratio (ζ):  {latest_zeta:.4f}")
+
+
+        #Transmissibility
+        # อัปเดตค่าเฉลี่ย Ta ทุกๆ 10 รอบ (0.1 วินาที) โดยเฉลี่ยจากข้อมูล 1 วินาทีล่าสุด (100 จุด)
+        #ความหมายคือการเอา 100 ค่าไปหารห่าค่า เฉลี่ยเพื่อให้คำนวณ
+        if len(self.a_Real_body) % 10 == 0:
+            ta_avg = calc_avg_transmissibility(self.a_Real_body[-100:], self.a_Real_Wheel[-100:])# 100 = 1.0 วินาที
+            self.lbl_Ta.setText(f"Transmissibility (Ta):  {ta_avg:.4f}")
+
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import math
 from scipy.signal import find_peaks
+import numpy as np
 
 def Dampingratio (a1,a2):#คำนวณ Dampingratio
 
@@ -9,6 +10,7 @@ def Dampingratio (a1,a2):#คำนวณ Dampingratio
         return zeta_s
     else:
         return 0.0
+
 def analyze_vibration(a_data, height_threshold=0.05, min_distance=10):
     peaks_idx, _ = find_peaks(a_data, height=height_threshold, distance=min_distance)
     a_Peaks = [a_data[i] for i in peaks_idx]
@@ -18,6 +20,37 @@ def analyze_vibration(a_data, height_threshold=0.05, min_distance=10):
         latest_zeta = Dampingratio(a_Peaks[-2], a_Peaks[-1])
 
     return a_Peaks, latest_zeta
+
+#=======================================================================================================================
+
+def Transmissibility (a_s,a_u):
+    if a_u != 0 :
+        Ta = a_s / a_u
+        return Ta
+    else:
+        return 0.0
+
+
+def calc_avg_transmissibility(body_list, wheel_list):
+    """คำนวณ Transmissibility จากค่าเฉลี่ยขนาดความเร่ง (Mean Absolute)"""
+    if len(body_list) == 0 or len(wheel_list) == 0:
+        return 0.0
+
+    min_len = min(len(body_list), len(wheel_list))#ตัดเอาข้อมูล 500 ตัวล่าสุดของทั้งคู่ มาคำนวณ
+    # ใช้ abs() เพื่อไม่ให้ค่าบวกกับค่าลบหักล้างกันเป็นศูนย์
+    avg_body = sum(abs(x) for x in body_list[-min_len:]) / min_len
+    avg_wheel = sum(abs(x) for x in wheel_list[-min_len:]) / min_len
+
+    return Transmissibility(avg_body, avg_wheel)
+
+    """
+    ถ้าเอา 100 คู่มาหารกันก่อนแล้วค่อยเฉลี่ย ใน 100 คู่นั้นอาจมีบางจุดที่ล้อวิ่งผ่านค่าใกล้ 0 (เช่น 0.0001) ทำให้เกิดตัวเลขเพี้ยนหลักพันติดเข้าไปในกลุ่ม 
+    พอเอาไปเฉลี่ยค่าก็จะเพี้ยนตามไปด้วย แต่การ หาค่าเฉลี่ยของตัวถังและล้อแยกกันให้เสร็จก่อน แล้วค่อยเอามาหารกัน จะตัดปัญหาตัวหารเป็นศูนย์ทิ้งไปได้ทั้งหมด 
+    ทำให้ได้ค่า Ta ที่นิ่งและแม่นยำ
+    """
+
+#=======================================================================================================================
+
 """"
 import math
 import numpy as np

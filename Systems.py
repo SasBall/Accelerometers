@@ -50,6 +50,12 @@ def calc_avg_transmissibility(body_list, wheel_list):
     """
 
 #=======================================================================================================================
+#Peak-to-Peak
+def Peak_to_Peak (a_list):
+    if len(a_list) == 0:
+        return 0.0
+    return max(a_list) - min(a_list)
+
 
 """"
 import math
